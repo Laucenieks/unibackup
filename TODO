@@ -1,0 +1,3 @@
+ * Add possibility to make md5 hash files for backups.
+ * Forced backup (e.g. before update).
+ * Consider this: Remove only increments for older backups.

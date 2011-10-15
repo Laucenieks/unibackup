@@ -1,0 +1,103 @@
+#!/usr/bin/perl
+# commands executed before backup
+@pre_commands = (
+    "/usr/sbin/pkg_info -o -a | grep \\/ > /etc/pkg-info"
+);
+
+# commands executed after backup
+# usually cleanup
+@post_commands = (
+);
+
+# files and directories that will be backed up
+# files to back up at full backup
+%what_full = (
+   "/etc/" => "/etc/",
+   "/sys/i386/conf/" => "/sys_i386_conf/",
+   "/usr/local/etc/" => "/usr_local_etc/",
+   "/var/lib/awstats/" => "/var_lib_awstas/",
+);
+
+# files to back up at incremental backup
+%what_incremental = %what_full;
+
+# full backup period
+$period_full = (60*10); # 10 minutes
+
+# incremental backup period
+$period_incremental = (60); # one minute
+
+# how many full (and incr) backups are left on server
+$full_backup_count = 2;
+
+# do only one full backup.
+# handy in cases where we have huge amount of data
+# and we want to store only oncrements
+$store_increments_only = 0;
+
+# this hosts hostname (for e-mail etc)
+$hostname = "test.example.com";
+
+# local directory that has enaugh space
+# to create backups
+$backupdir = "/usr/backupdir";
+
+# remote server that we will store
+# backups on.
+$backuphost = "192.168.72.1";
+$backuphost_port = "22";
+# enable if address for backuphost is changing
+$dynamic_backuphost = 0;
+$dynamic_backuphost_function = "http_txt_file";
+$dynamic_backuphost_res = "http://rule.lv/cbox";
+
+# file containing excludes
+$exclude_file = "/etc/backup.exclude";
+
+# permission store path
+$permdir = "/tmp/permdir";
+
+# data stored on backup host
+# will be encrypted = 1
+$insecure_backuphost = 1;
+
+# backup password
+$encrypt_password = "password";
+
+## login credinteals and other transport 
+## dependant information is saved in structure
+$login_conf->{'host'} = $backuphost;
+$login_conf->{'remote_dir'} = '/home/long/backup-test/sftp';
+$login_conf->{'user'} = 'long';
+$login_conf->{'pass'} = '';
+$login_conf->{'domain'} = 'WORKGROUP'; # for smbclient
+$login_conf->{'ssh_path'} = '/usr/bin/ssh'; # fot SFTP
+$login_conf->{'port'} = $backuphost_port;
+
+# backup transport type: smbclient, ftp, sftp, rsync_ssh, tar_ssh, rdiff_ssh
+$backup_transport = "sftp";
+## system commands
+#$rm = "/bin/rm";
+#$tail = "/usr/bin/tail";
+#$tar = "/usr/local/bin/gtar";
+#$openssl = "/usr/bin/openssl";
+#$perl = "/usr/bin/perl";
+#$touch = "/usr/bin/touch";
+#$rsync = "/usr/local/bin/rsync";
+
+# script root directory
+$script_directory = "/usr/home/long/01_programming/backup/backup/";
+# logs directory
+#$log_dir = "";
+# state directory
+#$state_dir = "";
+
+# e-mail configuration
+$use_mail = 1; # send e-mail on failures
+$mail_from = 'from@example.com';
+$mail_to = 'admin@example.com';
+$relayhost = "192.168.72.1";
+$relayport = "";
+$thishost = "$hostname";
+
+1;

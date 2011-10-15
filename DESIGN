@@ -1,0 +1,83 @@
+Targets:
+ * Possibility to have exclude file
+ * configurable two-level incremental backup. Example:
+  o daily increment - weekly overwrite:
+  o daily incremental backups created by gtar or using rsync;
+  o more than two weeks old backups are removed.
+ * pre and post-commands support.
+ * permissions are saved to files (allrights.pl).
+ * possibility to store files on insecure server (gtar with password or pass through openssl)
+ * Possibility to extend the script to use differrent transports e.g. rsync-ssh, gtar-ssh, gtar-ftp etc.
+ * Support nonstandard (DHCP) backup server address
+
+Script Flow:
+ * load configuration
+  o host-specific configuration (hostname, emergency e-mail etc)
+  o what to back up (hash what)
+  o check configuration
+ * check if remote backup server is up (can TCP connect())
+ * exec pre commands
+ * collect permissions for required files (put them in differrent
+	directory - permdir)
+ * decide if this is 1st or 2nd level backup
+	o 1st level backup overwrites all data
+	o 2nd level is incremental backup (addition to last 1st level backup)
+ * configure archive creation for backup commands if password in use
+ * connect to backup server and manage old files depending if this
+	is 1st or 2nd level backup
+ * run backup transport part (choose one depending on transport type)
+ * check for errors
+ * clean up temporary files and permdir
+ * send mail if there were errors.
+
+Incremental backup problem:
+Common backup scenarios
+a) monthly full backups (1st level), leave 2 firsts.
+	o twice a week - 2nd level backups
+	* we remove more than two months old backups,
+	when 1st level backup is removed, remove increments for
+	this backup
+b) weekly full backups, daily incremental backups, similar as above
+	problems:
+	* start required backup - solution: crontab
+		other solution: split year required parts:
+		on startup, check if we're over the border period,
+		check if 1st has been run for this period
+		run 1st, save on successful run.
+	* failsafe - save successful 1sts in file.
+	Check if first succeeded, run 1st if unsuccessful
+	* old file removal: depending on security (we don't
+	want to allow intruder to tamper with 
+	our backed up files on remote host, but is this possible?)
+		a) run periodic check on backup host (if we have access)
+		b) remove files remotely (suitable for all transports)
+
+Directory structure on remote host:
+1) backup user default home directory or ..
+2) server name
+3) folder with full backup human-readable date
+4) incremental backup files - <server-date>
+
+monthly 1st, weekly 2nd backup model:
+	use Date::Calc
+	$days = Days_in_Year($this_year)
+	# convert days to seconds
+	# get period length by dividing $days with period
+	# get epoch timestamp of beginning of current year
+	# check which period are we in now
+	# start the job if it's not run in current period
+	helpful: * http://flux.org.uk/howto/perl/yesterday_date
+		* http://www.perlhowto.com/converting_from_date_to_epoch_time
+
+Way to set up passwordless SSH keys:
+user@host1> cd; mkdir .ssh
+user@host1> ssh-keygen -t rsa -N '' -f .ssh/id_rsa
+user@host1> scp .ssh/id_rsa.pub user@host2:user_host1_key #requires password
+user@host1> ssh -l user host2 'mkdir .ssh; cat user_host1_key >>
+.ssh/authorized_keys' #requires password
+user@host1> ssh -l user host2 'ls -la' #Does NOT require password
+
+mkdir -p backup/current
+
+authorized_keys ieliekam saakumaa
+from="91.142.1.4",command="/usr/local/scripts/validate_rsync.sh" ssh-rsa AAAAB3NzaC..............

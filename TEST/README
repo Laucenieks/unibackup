@@ -1,0 +1,24 @@
+#install box with the following servers
+ssh
+samba
+ftp
+
+crontab:
+*/1 * * * * cd <script_directory>; perl backup.pl 2>/dev/null
+
+backup.conf
+$period_full = (60*10); # 10 minutes
+$period_incremental = (60); # one minute
+
+test: ftp, sftp, rsync_ssh, tar_ssh
+with and without increment_only
+
+ftp: port 21; path if sits in chroot
+sftp: port 22;
+smbclient: port 445; path
+smbclient -U <username> //<host>/<directory>
+rsync_ssh: port 22;
+tar_ssh: port 22;
+
+cp TEST/backup.conf.smbclient ./
+rm state/* && cat /dev/null > logs/backup.log

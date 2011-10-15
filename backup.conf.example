@@ -1,0 +1,113 @@
+#!/usr/bin/perl
+# commands executed before backup
+@pre_commands = (
+    "/usr/sbin/pkg_info -o -a | /usr/bin/grep \\/ > /etc/pkg-info"
+);
+
+# commands executed after backup
+# usually cleanup
+@post_commands = (
+);
+
+# files and directories that will be backed up
+# files to back up at full backup
+%what_full = (
+   "/etc/" => "/etc/",
+   "/sys/i386/conf/" => "/sys_i386_conf/",
+   "/usr/local/etc/" => "/usr_local_etc/",
+   "/var/lib/awstats/" => "/var_lib_awstas/",
+);
+
+# files to back up at incremental backup
+%what_incremental = %what_full;
+
+# full backup period
+$period_full = (60*10); # 10 minutes
+
+# incremental backup period
+$period_incremental = (60); # one minute
+
+# how many full (and incr) backups are left on server
+$full_backup_count = 2;
+
+# do only one full backup.
+# handy in cases where we have huge amount of data
+# and we want to store only oncrements
+$store_increments_only = 0;
+
+# this hosts hostname (for e-mail etc)
+$hostname = "host.domain.com";
+
+# local directory that has enaugh space
+# to create backups
+$backupdir = "/usr/backupdir";
+
+# remote server that we will store
+# backups on
+$backuphost = "192.168.72.1";
+$backuphost_port = "22";
+# enable if address for backuphost is changing
+$dynamic_backuphost = 0;
+# function name that sets address
+$dynamic_backuphost_function = "http_txt_file";
+# URL / ftp directory
+$dynamic_backuphost_res = "http://rule.lv/cbox";
+# user/password for dynamic backuphost
+$dynamic_backuphost_res_usr;
+$dynamic_backuphost_res_pass;
+
+# file containing excludes
+$exclude_file = "/etc/backup.exclude";
+
+# permission store path
+$permdir = "/tmp/permdir";
+
+# data stored on backup host
+# will be encrypted = 1
+$insecure_backuphost = 1;
+
+# backup password
+$encrypt_password = "password";
+
+## login credinteals and other transport 
+## dependant information is saved in structure
+$login_conf->{'host'} = $backuphost;
+$login_conf->{'remote_dir'} = '/home/long/backup_test';
+$login_conf->{'user'} = 'long';
+$login_conf->{'pass'} = 'password';
+$login_conf->{'domain'} = 'WORKGROUP'; # for smbclient
+$login_conf->{'ssh_path'} = '/usr/bin/ssh'; # fot SFTP
+$login_conf->{'port'} = $backuphost_port;
+
+# backup transport type: smbclient, ftp, sftp, rsync_ssh, tar_ssh, rdiff_ssh
+$backup_transport = "rsync_ssh";
+## system commands
+#$rm = "/bin/rm";
+#$tail = "/usr/bin/tail";
+#$tar = "/usr/local/bin/gtar";
+#$openssl = "/usr/bin/openssl";
+#$perl = "/usr/bin/perl";
+#$touch = "/usr/bin/touch";
+#$dd = "/bin/dd";
+#$rsync = "/usr/local/bin/rsync";
+#$rdiff_backup = "/usr/local/bin/rdiff-backup";
+#$bzip2 = "/usr/bin/bzip2";
+
+# script root directory
+$script_directory = "/usr/home/long/backup/";
+# logs directory
+#$log_dir = "";
+#$rotate_logs = 1;
+#$rotate_log_size = 20971520; # size in bytes (20 MB default)
+# state directory
+#$state_dir = "";
+
+# e-mail configuration
+$use_mail = 1; # send e-mail on failures
+$mail_from = 'from@example.com';
+$mail_to = 'admin@example.com';
+$relayhost = "";
+$relayport = "";
+$thishost = "$hostname";
+
+1;
