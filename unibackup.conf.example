@@ -39,7 +39,7 @@ $store_increments_only = 0;
 $hostname = "host.domain.com";
 
 # local directory that has enaugh space
-# to create backups
+# to create temporary backups before transfer
 $backupdir = "/usr/backupdir";
 
 # remote server that we will store
@@ -57,7 +57,7 @@ $dynamic_backuphost_res_usr;
 $dynamic_backuphost_res_pass;
 
 # file containing excludes
-$exclude_file = "/etc/backup.exclude";
+$exclude_file = "/etc/unibackup.exclude";
 
 # permission store path
 $permdir = "/tmp/permdir";
@@ -72,7 +72,7 @@ $encrypt_password = "password";
 ## login credinteals and other transport 
 ## dependant information is saved in structure
 $login_conf->{'host'} = $backuphost;
-$login_conf->{'remote_dir'} = '/home/long/backup_test';
+$login_conf->{'remote_dir'} = '/home/long/unibackup_test';
 $login_conf->{'user'} = 'long';
 $login_conf->{'pass'} = 'password';
 $login_conf->{'domain'} = 'WORKGROUP'; # for smbclient
@@ -92,9 +92,14 @@ $backup_transport = "rsync_ssh";
 #$rsync = "/usr/local/bin/rsync";
 #$rdiff_backup = "/usr/local/bin/rdiff-backup";
 #$bzip2 = "/usr/bin/bzip2";
+#$md5 = "/sbin/md5";
+
+# enable md5 hash file generation?
+# works only for smbclient, ftp and sftp transports
+$md5_enable = 0;
 
 # script root directory
-$script_directory = "/usr/home/long/backup/";
+$script_directory = "/usr/home/long/unibackup/";
 # logs directory
 #$log_dir = "";
 #$rotate_logs = 1;

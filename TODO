@@ -1,3 +1,6 @@
- * Add possibility to make md5 hash files for backups.
+ * Add configurable possibility to make md5 hash files for backup types:
+	* ftp
+	* sftp
+	* smbclient
  * Forced backup (e.g. before update).
- * Consider this: Remove only increments for older backups.
+ * Configurable: Remove only increments for X older backups.

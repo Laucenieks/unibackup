@@ -40,18 +40,25 @@ use Data::Validate::IP qw(is_ipv4); # net-mgmt/p5-Data-Validate-IP
 use Data::Validate::Domain qw(is_domain); # dns/p5-Data-Validate-Domain
 use File::Path 'remove_tree'; # devel/p5-File-Path
 use Getopt::Std; # perl built-in module
-### modules for differrent transports are loaded when transport is known
+
+### The following modules for differrent transports are loaded when 
+# backup transport is known
+
 ## ftp
 #use Net::FTP; # net/p5-Net
+
 ## sftp, rsync, tar_ssh and rdiff_ssh
 #use Net::SFTP::Foreign; # net/p5-Net-SFTP-Foreign
+
 ## dynamic_backuphost type http_txt_file
 #use HTTP::Request; # www/p5-libwww
 #use LWP::UserAgent; # www/p5-libwww
+
 ## smbclient
 #use Filesys::SmbClient; # net/p5-Filesys-SmbClient
 
-# 6 6 * * * root    /usr/local/scripts/backup/backup.pl 2>&1
+# Use the following line to enable unibackup from crontab
+# 6 6 * * * root    /usr/local/scripts/unibackup/unibackup.pl 2>&1
 
 sub execute; # command (mandantory), retrval (default 0), print output to log (default 0)
 sub backup_server_up($$); # host, port
@@ -97,7 +104,7 @@ use constant DEBUG_SCHEDULER => 1;
 # 0 - no output 1 - minimal 2 - verbose
 # 1 to show commands instead of execing them
 our $testrun = 0;
-my $config_file = "/etc/backup.conf";
+my $config_file = "/etc/unibackup.conf";
 
 # commands executed before backup
 our @pre_commands = ();
@@ -161,6 +168,9 @@ our $encrypt_password = "";
 # dependant information is saved in structure
 our $login_conf = {};
 
+# enable md5 hash file generation?
+our $md5_enable = 0;
+
 # backup transport type
 our $backup_transport;
 # system commands
@@ -174,6 +184,7 @@ our $dd = "/bin/dd";
 our $rsync = "/usr/local/bin/rsync";
 our $rdiff_backup = "/usr/local/bin/rdiff-backup";
 our $bzip2 = "/usr/bin/bzip2";
+our $md5 = "/sbin/md5";
 
 # script root directory
 our $script_directory;
@@ -193,6 +204,7 @@ our $relayport = "";
 our $thishost = "127.0.0.1 (unconfigured hostname)";
 
 ### Script internally used variables
+our $forced_backup = 0;
 # backup type: full or increment
 our $backup_type = "";
 # mail trigger
@@ -218,30 +230,24 @@ our %arguments;
 
 getopts('c:f:', \%arguments);
 
+# allow to pass configuration file from command line
 if (defined($arguments{"c"}) and ($arguments{"c"})) {
-	print "option c set: $arguments{c}\n";
+	if (-r $arguments{"c"}) {
+		print "Configuration file set to: $arguments{c}\n";
+		$config_file = $arguments{c};
+	} else {
+		print "Configuration file [$arguments{c}] not readable\n";
+		exit;
+	}
 }
 
 if (defined($arguments{"f"}) and ($arguments{"f"})) {
-	print "option f set: $arguments{f}\n";
+	print "Forced incremental backup will be performed\n";
+	$forced_backup = 1;
 }
 
 if ((defined($ARGV[0])) and ($ARGV[0])) {
-	print "Additional argument: $ARGV[0]\n";
-}
-
-
-# allow to pass configuration file from command line
-if ((defined($ARGV[0])) and (defined($ARGV[1]))) {
-	if ($ARGV[0] eq "-f") {
-		if (!(-r $ARGV[1])) {
-			print STDERR "Config file $ARGV[1] doesn't exist or not readable\n";
-			exit 1;
-		} else {
-			$config_file = $ARGV[1];
-			print "Config file set to [$config_file]\n" if (DEBUG > 2);
-		}
-	}
+	print "Unknown additional argument: $ARGV[0]\n";
 }
 
 # load config file
@@ -260,6 +266,7 @@ or $script_directory eq "" or $period_full lt 1) {
 $log_dir = "$script_directory/logs" if ($log_dir eq "");
 $state_dir = "$script_directory/state" if ($state_dir eq "");
 
+# Load required perl modules
 load "Net::FTP" if ($backup_transport eq "ftp");
 load "Net::SFTP::Foreign" if (($backup_transport eq "sftp") or ($backup_transport eq "rsync")
 	or ($backup_transport eq "tar_ssh") or ($backup_transport eq "rdiff_ssh"));
@@ -332,6 +339,10 @@ sub do_backup($) {
 	$main::period_incremental)) {
 		%main::what = %main::what_incremental;
 		$main::backup_type = "increment";
+	} elsif ($main::forced_backup) {
+		%main::what = %main::what_incremental;
+		$main::backup_type = "increment";
+		$main::this_backup_timestamp = timestamp_to_date(time);
 	}
 	$main::this_backup_date = timestamp_to_date($main::this_backup_timestamp);
 	# run backup if scheduled
@@ -523,6 +534,7 @@ sub universal_upload_function() {
 # tars files contained in %what
 # encrypts if encryption is on
 # creates <type>-<date>.enc
+# creates <type>-<date>.enc.md5 if md5_enable is set to true
 sub tar_files_local() {
 	my $command_string = "$main::tar -czvf - ";
 	if ($main::exclude_file ne "") {
@@ -560,6 +572,16 @@ sub tar_files_local() {
 		print "tar_files_local(): Error: Command failed\n";
 		return 0;
 	} else {
+		if ($main::md5_enable) {
+			$command_string = "$main::md5 $main::backupdir/$main::thishost-$main::backup_type.enc".
+				" > $main::backupdir/$main::thishost-$main::backup_type.enc.md5";
+			if (execute($command_string, 0)) {
+				print "tar_files_local(): Error: Couldn't create md5 file\n";
+				return 0;
+			} else {
+				return 1;
+			}
+		}
 		return 1;
 	}
 }
@@ -607,12 +629,29 @@ sub smbclient_upload_file() {
 	my $tmp;
 	my $start = time;
 	while (read(FILE, $tmp, 64512)) { 
-		$smb->write($fd, $tmp) or print $!,"\n"; 
+		$smb->write($fd, $tmp) or print $!,"\n";
 	}
 	my $end = time;
 	close FILE;
-	$smb->close($fd);
 	my $diff = ($end - $start);
+	$smb->close($fd);
+	if ($main::md5_enable) {
+		$fd = $smb->open(">smb:$link.md5", '0666');
+		if ($!) {
+			return "NOLOGIN" if $! eq "Permission denied";
+			return "NOFILE No such file or directory"
+				if $! eq "No such file or directory";
+			return "NOSERVER" if $! eq "Connection timed out";
+			return "Unknown error: [$!]";
+		}
+		open(FILE, "$local_file.md5") or return "NOLOCALFILE";
+		binmode(FILE);
+		my $tmp;
+		while (read(FILE, $tmp, 64512)) {
+			$smb->write($fd, $tmp) or print $!,"\n";
+		}
+		close FILE;
+	}
 	$diff++ if ($diff == 0);
 	print "smbclient_upload_file(): " . time_taken($diff) ." to upload $link,",
 		" size: ". human_size($size) . ", speed: " . int($size/1024/$diff),
@@ -955,6 +994,12 @@ sub ftp_upload_file() {
 		return "NOFILE ftp message: $message";
 	}
 	my $end = time;
+	if ($main::md5_enable) {
+		unless (eval{($ftp->put("$srcfile.md5"))}) {
+			my $message = $ftp->message;
+			return "NOFILE ftp message: $message";
+		}
+	}
 	$ftp->quit;
 	my $diff = ($end - $start);
 	$diff++ if ($diff == 0);
@@ -1032,6 +1077,12 @@ sub sftp_upload_file() {
 	unless (eval{($sftp->put("$srcfile", $main::thishost."-".$main::backup_type . ".enc"))}) {
 		my $message = $sftp->error;
 		return "NOFILE sftp message: $message";
+	}
+	if ($main::md5_enable) {
+		unless (eval{($sftp->put("$srcfile.md5", $main::thishost."-".$main::backup_type . ".enc.md5"))}) {
+			my $message = $sftp->error;
+			return "NOFILE sftp message: $message";
+		}
 	}
 	my $end = time;
 	my $diff = ($end - $start);
