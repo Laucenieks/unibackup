@@ -57,7 +57,7 @@ $dynamic_backuphost_res_usr;
 $dynamic_backuphost_res_pass;
 
 # file containing excludes
-$exclude_file = "/etc/unibackup.exclude";
+$exclude_file = "/etc/unibackup.exclude.conf";
 
 # permission store path
 $permdir = "/tmp/permdir";

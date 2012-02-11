@@ -152,7 +152,7 @@ sub http_error_code($$); # used by http_txt_file
 sub http_txt_file();
 
 # file containing excludes
-our $exclude_file = "/etc/backup.exclude";
+our $exclude_file = "/etc/backup.exclude.conf";
 
 # permission store path
 our $permdir = "/tmp/permdir";
@@ -228,7 +228,7 @@ our $upload_function = "";
 our $remove_old_files_function = "";
 our %arguments;
 
-getopts('c:f:', \%arguments);
+getopts('c:f:t:', \%arguments);
 
 # allow to pass configuration file from command line
 if (defined($arguments{"c"}) and ($arguments{"c"})) {
@@ -319,6 +319,40 @@ if (defined(&$backup_transport)) {
     do_backup(\&$backup_transport);
 } else {
     print "Error: Function $backup_transport not loaded\n";
+}
+
+# TEST part for this script
+# t argument contents:
+# localdir:remotedir_prepend
+if (defined($arguments{"t"}) and ($arguments{"t"})) {
+	# checks if full-<date> or increment-<date> (remote )directory is created
+	my ($localdir, $remotedir_prepend) = split (/:/,$arguments{t});
+	my $remotedir = $remotedir_prepend . $main::login_conf->{'remote_dir'} . "/" .
+        $main::backup_type . "-" . $main::this_backup_date . "/";
+
+	if (! -d "$remotedir") {
+		print "FAIL: No remote dir \"$remotedir\"\n";
+		exit 2;
+	}
+	# 
+	# checks if backup file is created and can be opened, checks md5 file,
+	# checks contents against original contents
+	my $remotefile = $remotedir . "$main::thishost-$main::backup_type.enc";
+	if (! -f "$remotefile") {
+		print "FAIL: No remote file: \"$remotefile\"\n";
+		exit 2;
+	}
+
+	if ($main::md5_enable) {
+		my $remotemd5file = $remotedir . "$main::thishost-$main::backup_type.md5";
+		if (! -f $remotemd5file) {
+			print "FAIL: No md5 file\n"; exit 2;
+		}
+		if (`md5 $remotefile` ne `cat $remotemd5file`) {
+			print "FAIL: md5 checksum failed\n"; exit 2;
+		}
+	}
+	print "Test succesful\n";
 }
 
 print "Script Finished\n";

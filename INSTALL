@@ -1,0 +1,45 @@
+###############################################################################
+### How to install required perl modules
+###############################################################################
+1) Best option: use your OS package management tools. e.g. ports tree on
+ FreeBSD or Aptitude (apt-get) on many Linux flavors. Unfortunately I don't
+ know how these packages are named on Linux, so these are not mentioned here.
+2) Alternative option when packages are not available: Use CPAN shell:
+ a) Open cpan shell with command: `perl -MCPAN -e shell'
+ b) Command `install <package>' downloads and installs required package.
+
+Example:
+ perl -MCPAN -e shell
+ # Say no to manual cpan configuration
+ install Module::Load
+ install IO::Socket::INET
+ ...
+ 
+###############################################################################
+### Required perl modules
+###############################################################################
+install Module::Load # FreeBSD: devel/p5-Module-Load
+install IO::Socket::INET
+install Mail::Sendmail # FreeBSD: mail/p5-Mail-Sendmail
+install Time::Local # FreeBSD: devel/p5-Time-Local
+install IO::Handle
+install Data::Validate::IP # FreeBSD: net-mgmt/p5-Data-Validate-IP
+install Data::Validate::Domain # FreeBSD: dns/p5-Data-Validate-Domain
+install File::Path # FreeBSD: devel/p5-File-Path
+
+###############################################################################
+### The following modules for differrent transports are loaded when
+### backup transport is known
+###############################################################################
+## ftp
+install Net::FTP # FreeBSD: net/p5-Net
+
+## sftp, rsync, tar_ssh and rdiff_ssh
+install Net::SFTP::Foreign # FreeBSD: net/p5-Net-SFTP-Foreign
+
+## smbclient
+Filesys::SmbClient # FreeBSD: net/p5-Filesys-SmbClient
+
+## dynamic_backuphost type http_txt_file
+install HTTP::Request # FreeBSD: www/p5-libwww
+install LWP::installrAgent # FreeBSD: www/p5-libwww
