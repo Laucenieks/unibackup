@@ -2,29 +2,30 @@
 =licence
 Copyright 2011 Normunds Neimanis. All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification, are
-permitted provided that the following conditions are met:
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
 
-   1. Redistributions of source code must retain the above copyright notice, this list of
-      conditions and the following disclaimer.
+   1. Redistributions of source code must retain the above copyright notice,
+      this list of conditions and the following disclaimer.
 
-   2. Redistributions in binary form must reproduce the above copyright notice, this list
-      of conditions and the following disclaimer in the documentation and/or other materials
-      provided with the distribution.
+   2. Redistributions in binary form must reproduce the above copyright notice,
+      this list of conditions and the following disclaimer in the documentation
+      and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY NORMUNDS NEIMANIS ''AS IS'' AND ANY EXPRESS OR IMPLIED
-WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
-FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL NORMUNDS NEIMANIS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+THIS SOFTWARE IS PROVIDED BY NORMUNDS NEIMANIS ''AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+EVENT SHALL NORMUNDS NEIMANIS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-The views and conclusions contained in the software and documentation are those of the
-authors and should not be interpreted as representing official policies, either expressed
-or implied, of Normunds Neimanis.
+The views and conclusions contained in the software and documentation are those
+of the authors and should not be interpreted as representing official policies,
+either expressed or implied, of Normunds Neimanis.
 =cut
 
 use strict;
@@ -99,7 +100,7 @@ sub check_success_email();
 sub send_mail($$); # subject, mail_body
 
 # Configuration
-use constant DEBUG => 2; # debuglevels: 
+use constant DEBUG => 3; # debuglevels: 
 use constant DEBUG_SCHEDULER => 1;
 # 0 - no output 1 - minimal 2 - verbose
 # 1 to show commands instead of execing them
@@ -228,7 +229,7 @@ our $upload_function = "";
 our $remove_old_files_function = "";
 our %arguments;
 
-getopts('c:f:t:', \%arguments);
+getopts('fc:t:', \%arguments);
 
 # allow to pass configuration file from command line
 if (defined($arguments{"c"}) and ($arguments{"c"})) {
@@ -324,7 +325,7 @@ if (defined(&$backup_transport)) {
 # TEST part for this script
 # t argument contents:
 # localdir:remotedir_prepend
-if (defined($arguments{"t"}) and ($arguments{"t"})) {
+if (($main::this_backup_timestamp) and defined($arguments{"t"}) and ($arguments{"t"})) {
 	# checks if full-<date> or increment-<date> (remote )directory is created
 	my ($localdir, $remotedir_prepend) = split (/:/,$arguments{t});
 	my $remotedir = $remotedir_prepend . $main::login_conf->{'remote_dir'} . "/" .
@@ -344,11 +345,11 @@ if (defined($arguments{"t"}) and ($arguments{"t"})) {
 	}
 
 	if ($main::md5_enable) {
-		my $remotemd5file = $remotedir . "$main::thishost-$main::backup_type.md5";
+		my $remotemd5file = $remotedir . "$main::thishost-$main::backup_type.enc.md5";
 		if (! -f $remotemd5file) {
 			print "FAIL: No md5 file\n"; exit 2;
 		}
-		if (`md5 $remotefile` ne `cat $remotemd5file`) {
+		if (`md5 $remotefile | awk '{print \$4}'` ne `cat $remotemd5file | awk '{print \$4}'`) {
 			print "FAIL: md5 checksum failed\n"; exit 2;
 		}
 	}
@@ -376,7 +377,7 @@ sub do_backup($) {
 	} elsif ($main::forced_backup) {
 		%main::what = %main::what_incremental;
 		$main::backup_type = "increment";
-		$main::this_backup_timestamp = timestamp_to_date(time);
+		$main::this_backup_timestamp = time;
 	}
 	$main::this_backup_date = timestamp_to_date($main::this_backup_timestamp);
 	# run backup if scheduled
@@ -413,8 +414,11 @@ sub do_backup($) {
 			# is made. set vars by is_time_to_run and save_success.
 			# This should be execed just before script exit()s
 			if ($main::backup_type eq "full") {
+				# TEST: need to save original this_backup_date to check "remote" dir
+				my $this_backup_date_bak = $main::this_backup_date;
 				is_time_to_run("$main::hostname-increment",
 					$main::period_incremental);
+				$main::this_backup_date = $this_backup_date_bak;
 				save_success("$main::hostname-increment");
 			}
 		} else { # backup failed
@@ -669,7 +673,9 @@ sub smbclient_upload_file() {
 	close FILE;
 	my $diff = ($end - $start);
 	$smb->close($fd);
-	if ($main::md5_enable) {
+	if ($main::md5_enable and ($size != (512*1024))) {
+		print "smbclient_upload_file(): Uploading file: $local_file.md5 size: " .
+			human_size($size) . "\n\tto $link.md5\n" if (DEBUG>=2);
 		$fd = $smb->open(">smb:$link.md5", '0666');
 		if ($!) {
 			return "NOLOGIN" if $! eq "Permission denied";
@@ -1028,7 +1034,7 @@ sub ftp_upload_file() {
 		return "NOFILE ftp message: $message";
 	}
 	my $end = time;
-	if ($main::md5_enable) {
+	if (($size != (512*1024)) and ($main::md5_enable)) {
 		unless (eval{($ftp->put("$srcfile.md5"))}) {
 			my $message = $ftp->message;
 			return "NOFILE ftp message: $message";
@@ -1112,7 +1118,7 @@ sub sftp_upload_file() {
 		my $message = $sftp->error;
 		return "NOFILE sftp message: $message";
 	}
-	if ($main::md5_enable) {
+	if (($size != (512*1024)) and ($main::md5_enable)) {
 		unless (eval{($sftp->put("$srcfile.md5", $main::thishost."-".$main::backup_type . ".enc.md5"))}) {
 			my $message = $sftp->error;
 			return "NOFILE sftp message: $message";

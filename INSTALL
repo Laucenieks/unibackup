@@ -36,6 +36,10 @@ install Net::FTP # FreeBSD: net/p5-Net
 
 ## sftp, rsync, tar_ssh and rdiff_ssh
 install Net::SFTP::Foreign # FreeBSD: net/p5-Net-SFTP-Foreign
+install Expect
+# In case sftp is not working with error: [Bad ssh command: Illegal seek] 
+# please replace IPC/Open3.pm contents with source taken from this version
+http://search.cpan.org/~jesse/perl-5.12.0/ext/IPC-Open3/lib/IPC/Open3.pm
 
 ## smbclient
 Filesys::SmbClient # FreeBSD: net/p5-Filesys-SmbClient

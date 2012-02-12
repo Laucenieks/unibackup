@@ -1,6 +1,37 @@
 #!/usr/bin/perl
+=licence
+Copyright 2011 Normunds Neimanis. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+   1. Redistributions of source code must retain the above copyright notice,
+      this list of conditions and the following disclaimer.
+
+   2. Redistributions in binary form must reproduce the above copyright notice,
+      this list of conditions and the following disclaimer in the documentation
+      and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY NORMUNDS NEIMANIS ''AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+EVENT SHALL NORMUNDS NEIMANIS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+The views and conclusions contained in the software and documentation are those
+of the authors and should not be interpreted as representing official policies,
+either expressed or implied, of Normunds Neimanis.
+=cut
+
 use warnings;
 use strict;
+
+use Time::HiRes qw(time);
 
 # (pre) clean state directory, clear log file
 # rm state/* && cat /dev/null > logs/backup.log
@@ -15,20 +46,134 @@ our $backup_source_dir = '/home/long/backup_testdir';
 our $testrun = 0;
 
 my @tests = (
+#	{
+#		id => 1,
+#		desc => "smbclient backup",
+#		md5_enable => 0,
+#		insecure_backuphost => 1,
+#		backup_transport => "smbclient",
+#		remote_dir => "/long/unibackup_test_smbclient",
+#		realdir => "/home",
+#		port => 445,
+#	},
+#	{
+#		id => 2,
+#		desc => "smbclient md5 backup",
+#		md5_enable => 1,
+#		insecure_backuphost => 1,
+#		backup_transport => "smbclient",
+#		remote_dir => "/long/unibackup_test_smbclient",
+#		realdir => "/home",
+#		port => 445,
+#	},
+#	{
+#		id => 3,
+#		desc => "smbclient md5 secure backuphost backup",
+#		md5_enable => 1,
+#		insecure_backuphost => 0,
+#		backup_transport => "smbclient",
+#		remote_dir => "/long/unibackup_test_smbclient",
+#		realdir => "/home",
+#		port => 445,
+#	},
+#	{
+#		id => 4,
+#		desc => "smbclient forced md5 secure backuphost backup",
+#		md5_enable => 1,
+#		insecure_backuphost => 0,
+#		backup_transport => "smbclient",
+#		remote_dir => "/long/unibackup_test_smbclient",
+#		realdir => "/home",
+#		port => 445,
+#		forced_backup => 1,
+#	},
+#	{
+#		id => 5,
+#		desc => "ftp backup",
+#		md5_enable => 0,
+#		insecure_backuphost => 1,
+#		backup_transport => "ftp",
+#		remote_dir => "/unibackup_test_ftp",
+#		realdir => "/home/long",
+#		port => 21,
+#	},
+#	{
+#		id => 6,
+#		desc => "ftp md5 backup",
+#		md5_enable => 1,
+#		insecure_backuphost => 1,
+#		backup_transport => "ftp",
+#		remote_dir => "/unibackup_test_ftp",
+#		realdir => "/home/long",
+#		port => 21,
+#	},
+#	{
+#		id => 7,
+#		desc => "ftp md5 forced backup",
+#		md5_enable => 1,
+#		insecure_backuphost => 1,
+#		backup_transport => "ftp",
+#		remote_dir => "/unibackup_test_ftp",
+#		realdir => "/home/long",
+#		port => 21,
+#		forced_backup => 1,
+#	},
+#	{
+#		id => 8,
+#		desc => "ftp nonencrypted md5 backup",
+#		md5_enable => 1,
+#		insecure_backuphost => 0,
+#		backup_transport => "ftp",
+#		remote_dir => "/unibackup_test_ftp",
+#		realdir => "/home/long",
+#		port => 21,
+#	},
+#	{
+#		id => 9,
+#		desc => "sftp backup",
+#		md5_enable => 0,
+#		insecure_backuphost => 1,
+#		backup_transport => "sftp",
+#		remote_dir => "/home/long/unibackup_test_sftp",
+#		realdir => "",
+#		port => 22,
+#	},
+#	{
+#		id => 10,
+#		desc => "sftp md5 backup",
+#		md5_enable => 1,
+#		insecure_backuphost => 1,
+#		backup_transport => "sftp",
+#		remote_dir => "/home/long/unibackup_test_sftp",
+#		realdir => "",
+#		port => 22,
+#	},
 	{
-		id => 1,
-		desc => "smbclient backup",
-		md5_enable => 0,
+		id => 11,
+		desc => "sftp md5 forced backup",
+		md5_enable => 1,
 		insecure_backuphost => 1,
-		backup_transport => "smbclient",
-		remote_dir => "/long/unibackup_test_smbclient",
-		realdir => "/home",
-		port => 445,
+		backup_transport => "sftp",
+		remote_dir => "/home/long/unibackup_test_sftp",
+		realdir => "",
+		port => 22,
+		forced_backup => 1,
 	},
+#	{
+#		id => 12,
+#		desc => "sftp unencrypted md5 backup",
+#		md5_enable => 1,
+#		insecure_backuphost => 0,
+#		backup_transport => "sftp",
+#		remote_dir => "/home/long/unibackup_test_sftp",
+#		realdir => "",
+#		port => 22,
+#	},
 );
 
 my $config;
 my $step = '';
+CONFIG:
 foreach $config (@tests) {
 	$step = "Copy conffile";
 	execute("cp unibackup.conf.template unibackup.conf.$config->{backup_transport}") and goto "FAIL";
@@ -57,14 +202,51 @@ foreach $config (@tests) {
 	$step = "Config: Finish config file\n";
 	execute("echo '1;' >> unibackup.conf.$config->{backup_transport}") and goto "FAIL";
 
-	$step = "Modify files";
-	if (!modify_files()) { goto "FAIL"; };
+	if ((!defined($config->{'forced_backup'})) or ((defined($config->{'forced_backup'})) and ($config->{'forced_backup'} == 0))) {
+		for (0..7) {
+			$increment++;
+			my $time = time;
+			my $nexttime = $time + 61;
+			$step = "Modify files";
+			if (!modify_files()) { goto "FAIL"; };
 
-	$step = "Run unibackup.pl";
-	if (execute("perl ../unibackup.pl -c unibackup.conf.$config->{backup_transport} -t $backup_source_dir:$config->{realdir}")) {goto FAIL;};
+			$step = "Run unibackup.pl";
+			print "Running ... ";
+			# print "perl ../unibackup.pl -c unibackup.conf.$config->{backup_transport} -t $backup_source_dir:$config->{realdir}\n"; exit;
+			if (execute("perl ../unibackup.pl -c unibackup.conf.$config->{backup_transport} -t $backup_source_dir:$config->{realdir}")) {goto FAIL;};
+			print "Exec finished. Sleeping " . ((($nexttime - (time - $time + time)) + 0.5)) . " seconds\n";
+			sleep((($nexttime - (time - $time + time)) + 0.5));
+		}
+	} elsif ((defined($config->{'forced_backup'})) and ($config->{'forced_backup'} == 1)) {
+		for (0..1) {
+			$increment++;
+			my $time = time;
+			my $nexttime = $time + 61;
+			$step = "Modify files";
+			if (!modify_files()) { goto "FAIL"; };
 
+			$step = "Run unibackup.pl";
+			print "Running ... ";
+			# print "perl ../unibackup.pl -c unibackup.conf.$config->{backup_transport} -t $backup_source_dir:$config->{realdir}\n"; exit;
+			if (execute("perl ../unibackup.pl -c unibackup.conf.$config->{backup_transport} -t $backup_source_dir:$config->{realdir}")) {goto FAIL;};
+			print "Exec finished. Sleeping " . ((($nexttime - (time - $time + time)) + 0.5)) . " seconds\n";
+			sleep((($nexttime - (time - $time + time)) + 0.5));
+		}
+		print "Exec finished.\n";
+		if (execute("perl ../unibackup.pl -c unibackup.conf.$config->{backup_transport} -t $backup_source_dir:$config->{realdir}")) {goto FAIL;};
+		$step = "Modify files";
+		if (!modify_files()) { goto "FAIL"; };
+		$step = "Run forced unibackup.pl";
+		print "Running forced ... ";
+		if (execute("perl ../unibackup.pl -c unibackup.conf.$config->{backup_transport} -t $backup_source_dir:$config->{realdir} -f ")) {goto FAIL;};
+		sleep 5;
+		if (execute("perl ../unibackup.pl -c unibackup.conf.$config->{backup_transport} -t $backup_source_dir:$config->{realdir} -f ")) {goto FAIL;};
+	} else {
+		print "Strange forced_backup option\n";
+		goto "FAIL";
+	}
 	print "PASS test id $config->{'id'} [$config->{'desc'}]\n";
-	next;
+	next "CONFIG";
 
 FAIL:
 	print "FAIL test id $config->{'id'} [$config->{'desc'}] failed on step [$step]\n";
